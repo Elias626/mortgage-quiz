@@ -416,7 +416,7 @@ var _eu = 'eliasa';
 var _ed = 'mtgpros';
 var _et = '.com';
 var RECIPIENT = _eu + '@' + _ed + _et;
-var FORMSPREE_ENDPOINT = 'https://formspree.io/f/xaqlblyk';
+var FORMSPREE_ENDPOINT = 'PASTE_YOUR_FORMSPREE_ENDPOINT_HERE';
 
 var ALL_QUESTIONS = [
   {
@@ -488,18 +488,6 @@ var ALL_QUESTIONS = [
     icon: ['\u2705','\u274C'],
     options: ['Yes', 'No'],
     showIf: function() { return answers.veteran === 'Yes'; }
-  },
-  {
-    id: 'employment',
-    question: 'Are you working or retired?',
-    icon: ['\uD83D\uDCBC','\uD83C\uDFD6\uFE0F'],
-    options: ['Working', 'Retired']
-  },
-  {
-    id: 'income',
-    type: 'text_input',
-    question: 'How much are you bringing in on a yearly basis?',
-    placeholder: 'e.g. $85,000'
   },
   {
     id: 'preference',
@@ -586,16 +574,8 @@ function renderContact() {
     '<div class="question-text">Where should we send your personalized options?</div>' +
     '<div class="contact-fields">' +
       '<div class="field-group">' +
-        '<label>Full Name</label>' +
+        '<label>First and Last Name</label>' +
         '<input type="text" id="c-name" placeholder="Jane Smith" value="' + (answers._name || '') + '">' +
-      '</div>' +
-      '<div class="field-group">' +
-        '<label>Phone Number</label>' +
-        '<input type="tel" id="c-phone" placeholder="(555) 123-4567" value="' + (answers._phone || '') + '">' +
-      '</div>' +
-      '<div class="field-group">' +
-        '<label>Email (optional)</label>' +
-        '<input type="email" id="c-email" placeholder="jane' + String.fromCharCode(64) + 'example.com" value="' + (answers._email || '') + '">' +
       '</div>' +
     '</div>' +
     '<div class="nav-row">' +
@@ -672,8 +652,6 @@ async function submit() {
   var activeQs = getActiveQuestions();
   var payload = {
     name: name,
-    phone: phone,
-    email: email || 'Not provided',
     submitted_at: new Date().toLocaleString()
   };
 
