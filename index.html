@@ -416,7 +416,7 @@ var _eu = 'eliasa';
 var _ed = 'mtgpros';
 var _et = '.com';
 var RECIPIENT = _eu + '@' + _ed + _et;
-var FORMSPREE_ENDPOINT = 'PASTE_YOUR_FORMSPREE_ENDPOINT_HERE';
+var FORMSPREE_ENDPOINT = 'https://formspree.io/f/xaqlblyk';
 
 var ALL_QUESTIONS = [
   {
@@ -577,6 +577,14 @@ function renderContact() {
         '<label>First and Last Name</label>' +
         '<input type="text" id="c-name" placeholder="Jane Smith" value="' + (answers._name || '') + '">' +
       '</div>' +
+      '<div class="field-group">' +
+        '<label>Phone Number</label>' +
+        '<input type="tel" id="c-phone" placeholder="(555) 123-4567" value="' + (answers._phone || '') + '">' +
+      '</div>' +
+      '<div class="field-group">' +
+        '<label>Email (optional)</label>' +
+        '<input type="email" id="c-email" placeholder="jane' + String.fromCharCode(64) + 'example.com" value="' + (answers._email || '') + '">' +
+      '</div>' +
     '</div>' +
     '<div class="nav-row">' +
       '<button class="btn-back" onclick="back()">\u2190 Back</button>' +
@@ -640,25 +648,30 @@ async function submit() {
     return;
   }
 
-  if (!FORMSPREE_ENDPOINT || FORMSPREE_ENDPOINT === 'PASTE_YOUR_FORMSPREE_ENDPOINT_HERE') {
-    alert('Form endpoint is not set yet.');
-    return;
-  }
+  // Disable button to prevent double submit
+  var submitBtn = document.querySelector('.btn-next');
+  submitBtn.textContent = 'Submitting...';
+  submitBtn.style.pointerEvents = 'none';
+  submitBtn.style.opacity = '0.5';
 
   answers._name = name;
   answers._phone = phone;
   answers._email = email;
 
-  var activeQs = getActiveQuestions();
+  // Build payload with all answers
   var payload = {
-    name: name,
-    submitted_at: new Date().toLocaleString()
+    _subject: 'New Mortgage Lead: ' + name,
+    Name: name,
+    Phone: phone,
+    Email: email || 'Not provided'
   };
 
+  var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
-    payload[activeQs[i].id] = answers[activeQs[i].id] || '';
     payload[activeQs[i].question] = answers[activeQs[i].id] || '';
   }
+
+  payload['Submitted'] = new Date().toLocaleString();
 
   try {
     var response = await fetch(FORMSPREE_ENDPOINT, {
@@ -675,13 +688,16 @@ async function submit() {
     }
 
     var emailLink = document.getElementById('done-email-link');
-    emailLink.href = 'mailto:' + RECIPIENT;
+    emailLink.href = 'mail' + 'to:' + RECIPIENT;
     emailLink.textContent = RECIPIENT;
 
     document.getElementById('quiz-container').classList.add('hidden');
     document.getElementById('done-screen').classList.remove('hidden');
   } catch (err) {
-    alert('Something went wrong submitting the form. Please try again.');
+    submitBtn.textContent = 'Submit My Answers';
+    submitBtn.style.pointerEvents = 'all';
+    submitBtn.style.opacity = '1';
+    alert('Something went wrong. Please try again.');
   }
 }
 
