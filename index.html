@@ -685,11 +685,11 @@ function renderContact() {
 
   var card = document.getElementById('question-card');
   card.innerHTML =
-    '<div class="question-text">Phone or email?</div>' +
+    '<div class="question-text">Best email to send your options to?</div>' +
     '<p style="font-size:13px;color:#6B7280;margin:-20px 0 24px;"></p>' +
     '<div class="contact-fields">' +
       '<div class="field-group">' +
-        '<label>Phone Number</label>' +
+        '<label>Phone Number (optional)</label>' +
         '<input type="tel" id="c-phone" placeholder="(555) 123-4567" value="' + (answers._phone || '') + '" oninput="checkContactReady()">' +
       '</div>' +
       '<div class="field-group">' +
@@ -765,17 +765,18 @@ function back() {
   if (current > 0) { current--; render(); }
 }
 
-async function submitQuiz() {
+function submitQuiz() {
   var phoneEl = document.getElementById('c-phone');
   var emailEl = document.getElementById('c-email');
   var phone = phoneEl ? phoneEl.value.trim() : '';
   var email = emailEl ? emailEl.value.trim() : '';
 
-  if (!phone && !email) {
-    alert('Please provide at least a phone number or email so we can reach you.');
+  if (!email) {
+    alert('Please enter your email so I can send your options.');
     return;
   }
 
+  // Disable button to prevent double submit
   var submitBtn = document.getElementById('btn-submit');
   submitBtn.textContent = 'Submitting...';
   submitBtn.style.pointerEvents = 'none';
@@ -784,12 +785,11 @@ async function submitQuiz() {
   answers._phone = phone;
   answers._email = email;
 
+  // Build FormData
   var formData = new FormData();
   formData.append('_subject', 'New Mortgage Lead');
-  formData.append('Phone', phone || 'Not provided');
-  formData.append('Email', email || 'Not provided');
-  formData.append('_source', window.location.href);
-  formData.append('Submitted', new Date().toLocaleString());
+  formData.append('phone', phone || 'Not provided');
+  formData.append('email', email || '');
 
   var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
@@ -802,31 +802,24 @@ async function submitQuiz() {
     }
   }
 
-  try {
-    var response = await fetch(FORMSPREE_ENDPOINT, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Accept': 'application/json'
+  formData.append('Submitted', new Date().toLocaleString());
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', FORMSPREE_ENDPOINT);
+  xhr.setRequestHeader('Accept', 'application/json');
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        showDoneScreen();
+      } else {
+        submitBtn.textContent = 'Submit My Answers';
+        submitBtn.style.pointerEvents = 'all';
+        submitBtn.style.opacity = '1';
+        alert('Submission failed. Please make sure your email is entered correctly and try again.');
       }
-    });
-
-    if (!response.ok) {
-      var errorText = '';
-      try {
-        errorText = await response.text();
-      } catch (e) {}
-      throw new Error(errorText || 'Submission failed');
     }
-
-    showDoneScreen();
-  } catch (err) {
-    console.error('Formspree submission error:', err);
-    submitBtn.textContent = 'Submit My Answers';
-    submitBtn.style.pointerEvents = 'all';
-    submitBtn.style.opacity = '1';
-    alert('Submission failed. Please try again.');
-  }
+  };
+  xhr.send(formData);
 }
 
 function showDoneScreen() {
