@@ -530,6 +530,13 @@ var ALL_QUESTIONS = [
     showIf: function() { return answers.property_use !== 'Investment' && answers.veteran === 'Yes'; }
   },
   {
+    id: 'income_type',
+    question: 'Income?',
+    icon: ['\uD83D\uDCBC','\uD83D\uDCCB','\uD83C\uDFD6\uFE0F'],
+    options: ['Business/1099', 'W2', 'Retired'],
+    showIf: function() { return !(answers.goal === 'Lower payment' && answers.veteran === 'Yes'); }
+  },
+  {
     id: 'preference',
     question: 'What matters most to you?',
     icon: ['\uD83D\uDCB0','\uD83D\uDCC9','\u23F8\uFE0F'],
