@@ -79,8 +79,8 @@
 
   .progress-bar {
     width: 100%;
-    height: 4px;
-    background: rgba(11, 29, 58, 0.08);
+    height: 8px;
+    background: rgba(11, 29, 58, 0.12);
     border-radius: 100px;
     margin-bottom: 40px;
     overflow: hidden;
@@ -88,17 +88,14 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--gold), var(--gold-light));
+    background: linear-gradient(90deg, var(--gold), #D4A843);
     border-radius: 100px;
     transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px rgba(201, 168, 76, 0.4);
   }
 
   .progress-text {
-    text-align: center;
-    font-size: 13px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    font-weight: 500;
+    display: none;
   }
 
   .question-card {
@@ -376,6 +373,25 @@
 
   .hidden { display: none !important; }
 
+  .section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    margin-bottom: 10px;
+    letter-spacing: 0.3px;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: rgba(11, 29, 58, 0.08);
+    margin: 24px 0;
+  }
+
+  .options-section.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
   .compliance-footer {
     text-align: center;
     margin-top: 40px;
@@ -453,28 +469,28 @@ var ALL_QUESTIONS = [
     id: 'goal',
     question: "What's your primary goal?",
     icon: ['\uD83D\uDCC9','\uD83D\uDCB0','\uD83C\uDFE6'],
-    options: ['Refinancing for lower payment', 'Refinancing for cash-out', 'HELOC']
+    options: ['Lower payment', 'Cash out', 'HELOC/2nd Mortgage']
   },
   {
     id: 'refi_rate',
     type: 'text_input',
     question: 'What is your current interest rate?',
     placeholder: 'e.g. 6.5%',
-    showIf: function() { return answers.goal === 'Refinancing for lower payment'; }
+    showIf: function() { return answers.goal === 'Lower payment'; }
   },
   {
     id: 'cashout_amount',
     type: 'text_input',
     question: 'How much cash-out is enough for you?',
     placeholder: 'e.g. $50,000',
-    showIf: function() { return answers.goal === 'Refinancing for cash-out'; }
+    showIf: function() { return answers.goal === 'Cash out'; }
   },
   {
     id: 'heloc_amount',
     type: 'text_input',
-    question: 'How much do you want to take out on the HELOC?',
+    question: 'How much?',
     placeholder: 'e.g. $75,000',
-    showIf: function() { return answers.goal === 'HELOC'; }
+    showIf: function() { return answers.goal === 'HELOC/2nd Mortgage'; }
   },
   {
     id: 'loan_parties',
@@ -483,16 +499,9 @@ var ALL_QUESTIONS = [
     options: ['Yes', 'No, my spouse as well', 'No, others as well']
   },
   {
-    id: 'property',
-    question: 'What type of property?',
-    icon: ['\uD83C\uDFE1','\uD83C\uDFE2'],
-    options: ['Single-family home', 'Condo / Townhome']
-  },
-  {
-    id: 'property_use',
-    question: 'What type of property?',
-    icon: ['\uD83C\uDFE0','\uD83C\uDFD6\uFE0F','\uD83D\uDCC8'],
-    options: ['Primary', '2nd home', 'Investment']
+    id: 'property_combined',
+    type: 'combined_property',
+    question: 'What type of property?'
   },
   {
     id: 'credit',
@@ -510,14 +519,15 @@ var ALL_QUESTIONS = [
     id: 'veteran',
     question: 'Are you or is anyone in the home a veteran?',
     icon: ['\uD83C\uDF96\uFE0F','\u274C'],
-    options: ['Yes', 'No']
+    options: ['Yes', 'No'],
+    showIf: function() { return answers.property_use !== 'Investment'; }
   },
   {
     id: 'va_disability',
     question: 'Do you receive 10% or higher VA disability?',
     icon: ['\u2705','\u274C'],
     options: ['Yes', 'No'],
-    showIf: function() { return answers.veteran === 'Yes'; }
+    showIf: function() { return answers.property_use !== 'Investment' && answers.veteran === 'Yes'; }
   },
   {
     id: 'preference',
@@ -548,14 +558,18 @@ function render() {
   var total = questions.length;
   var pct = ((current + 1) / (total + 1) * 100).toFixed(1);
 
-  document.getElementById('progress-label').textContent = 'Question ' + (current + 1) + ' of ' + total;
   document.getElementById('progress-fill').style.width = pct + '%';
 
   var card = document.getElementById('question-card');
 
+  // Combined property question
+  if (q.type === 'combined_property') {
+    renderCombinedProperty(card);
+    return;
+  }
+
   if (q.type === 'text_input') {
     card.innerHTML =
-      '<div class="question-number">Question ' + (current + 1) + '</div>' +
       '<div class="question-text">' + q.question + '</div>' +
       '<div class="contact-fields">' +
         '<div class="field-group">' +
@@ -585,7 +599,6 @@ function render() {
   }
 
   card.innerHTML =
-    '<div class="question-number">Question ' + (current + 1) + '</div>' +
     '<div class="question-text">' + q.question + '</div>' +
     '<div class="options">' + optionsHtml + '</div>' +
     '<div class="nav-row">' +
@@ -594,15 +607,79 @@ function render() {
     '</div>';
 }
 
+function renderCombinedProperty(card) {
+  var structureOpts = ['Single-family home', 'Condo / Townhome'];
+  var structureIcons = ['\uD83C\uDFE1', '\uD83C\uDFE2'];
+  var useOpts = ['Primary', '2nd home', 'Investment'];
+  var useIcons = ['\uD83C\uDFE0', '\uD83C\uDFD6\uFE0F', '\uD83D\uDCC8'];
+
+  var s1Html = '';
+  for (var i = 0; i < structureOpts.length; i++) {
+    var opt = structureOpts[i];
+    var escaped = opt.replace(/'/g, "\\'");
+    var sel = answers.property === opt ? ' selected' : '';
+    s1Html +=
+      '<button class="option-btn' + sel + '" onclick="selectProperty(\'' + escaped + '\')">' +
+        '<div class="option-icon">' + structureIcons[i] + '</div>' +
+        '<span class="option-label">' + opt + '</span>' +
+        '<div class="option-check"></div>' +
+      '</button>';
+  }
+
+  var s2Html = '';
+  for (var j = 0; j < useOpts.length; j++) {
+    var opt2 = useOpts[j];
+    var escaped2 = opt2.replace(/'/g, "\\'");
+    var sel2 = answers.property_use === opt2 ? ' selected' : '';
+    s2Html +=
+      '<button class="option-btn' + sel2 + '" onclick="selectPropertyUse(\'' + escaped2 + '\')">' +
+        '<div class="option-icon">' + useIcons[j] + '</div>' +
+        '<span class="option-label">' + opt2 + '</span>' +
+        '<div class="option-check"></div>' +
+      '</button>';
+  }
+
+  var s2Disabled = !answers.property ? ' disabled' : '';
+
+  card.innerHTML =
+    '<div class="question-text">What type of property?</div>' +
+    '<div class="section-label">Structure</div>' +
+    '<div class="options">' + s1Html + '</div>' +
+    '<div class="section-divider"></div>' +
+    '<div class="section-label">Occupancy</div>' +
+    '<div class="options options-section' + s2Disabled + '" id="property-use-section">' + s2Html + '</div>' +
+    '<div class="nav-row">' +
+      '<button class="btn-back' + (current === 0 ? ' hidden' : '') + '" onclick="back()">\u2190 Back</button>' +
+      '<button class="btn-next' + (answers.property && answers.property_use ? ' active' : '') + '" id="btn-next" onclick="next()">Continue</button>' +
+    '</div>';
+}
+
+function selectProperty(value) {
+  answers.property = value;
+  renderCombinedProperty(document.getElementById('question-card'));
+}
+
+function selectPropertyUse(value) {
+  answers.property_use = value;
+  if (value === 'Investment') {
+    delete answers['veteran'];
+    delete answers['va_disability'];
+  }
+  renderCombinedProperty(document.getElementById('question-card'));
+  // Auto-advance after both are selected
+  if (answers.property && answers.property_use) {
+    setTimeout(function() { next(); }, 400);
+  }
+}
+
 function renderContact() {
   document.getElementById('progress-label').textContent = 'Almost done!';
   document.getElementById('progress-fill').style.width = '100%';
 
   var card = document.getElementById('question-card');
   card.innerHTML =
-    '<div class="question-number">Final Step</div>' +
-    '<div class="question-text">How would you like us to reach you?</div>' +
-    '<p style="font-size:13px;color:#6B7280;margin:-20px 0 24px;">Provide your phone number, email, or both.</p>' +
+    '<div class="question-text">Phone or email?</div>' +
+    '<p style="font-size:13px;color:#6B7280;margin:-20px 0 24px;"></p>' +
     '<div class="contact-fields">' +
       '<div class="field-group">' +
         '<label>Phone Number</label>' +
@@ -666,7 +743,9 @@ function select(id, value, el) {
 function next() {
   var questions = getActiveQuestions();
   var q = questions[current];
-  if (q.type === 'text_input') {
+  if (q.type === 'combined_property') {
+    if (!answers.property || !answers.property_use) return;
+  } else if (q.type === 'text_input') {
     if (!answers[q.id] || !answers[q.id].trim()) return;
   } else {
     if (!answers[q.id]) return;
