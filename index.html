@@ -781,8 +781,8 @@ function submitQuiz() {
   // Redirect back after submission
   addField('_next', window.location.href + '?submitted=true');
   addField('_subject', 'New Mortgage Lead');
-  addField('Phone', phone || 'Not provided');
-  addField('Email', email || 'Not provided');
+  if (phone) addField('Phone', phone);
+  if (email) addField('Email', email);
 
   var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
