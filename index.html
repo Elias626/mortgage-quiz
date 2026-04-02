@@ -787,32 +787,46 @@ async function submitQuiz() {
 
   var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
-    payload[activeQs[i].question] = answers[activeQs[i].id] || '';
+    var q = activeQs[i];
+    if (q.type === 'combined_property') {
+      payload['Property Structure'] = answers.property || '';
+      payload['Property Occupancy'] = answers.property_use || '';
+    } else {
+      payload[q.question] = answers[q.id] || '';
+    }
   }
 
   payload['submitted_at'] = new Date().toLocaleString();
 
-  try {
-    var response = await fetch(FORMSPREE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+  // Use hidden iframe + form to avoid CORS issues
+  var iframeName = 'formspree-frame-' + Date.now();
+  var iframe = document.createElement('iframe');
+  iframe.name = iframeName;
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
 
-    if (!response.ok) {
-      throw new Error('Submission failed');
-    }
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = FORMSPREE_ENDPOINT;
+  form.target = iframeName;
+  form.style.display = 'none';
 
-    showDoneScreen();
-  } catch (err) {
-    submitBtn.textContent = 'Submit My Answers';
-    submitBtn.style.pointerEvents = 'all';
-    submitBtn.style.opacity = '1';
-    alert('Something went wrong submitting the form. Please try again.');
+  var keys = Object.keys(payload);
+  for (var k = 0; k < keys.length; k++) {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = keys[k];
+    input.value = payload[keys[k]];
+    form.appendChild(input);
   }
+
+  document.body.appendChild(form);
+  form.submit();
+
+  // Show done screen after a brief delay to let form submit
+  setTimeout(function() {
+    showDoneScreen();
+  }, 500);
 }
 
 function showDoneScreen() {
