@@ -44,6 +44,12 @@
     margin-bottom: 48px;
   }
 
+  .quiz-header .logo {
+    max-width: 220px;
+    margin: 0 auto 20px;
+    display: block;
+  }
+
   .quiz-header .badge {
     display: inline-block;
     background: var(--navy);
@@ -370,6 +376,28 @@
 
   .hidden { display: none !important; }
 
+  .compliance-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    letter-spacing: 0.2px;
+  }
+
+  .compliance-footer .lo-name {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  .compliance-footer .disclaimer {
+    margin-top: 10px;
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
   @media (max-width: 480px) {
     .question-card { padding: 28px 20px; }
     .option-btn { padding: 14px 16px; }
@@ -402,20 +430,22 @@
         <span class="ci">&#128222;</span>
         <a href="tel:3129001473">(312) 900-1473</a>
       </div>
-      <div class="contact-row" id="done-email-row">
+      <div class="contact-row">
         <span class="ci">&#9993;</span>
-        <a id="done-email-link" href="#">Loading...</a>
+        <a href="https://formspree.io/f/xaqlblyk">eliasa&#64;mtgpros.com</a>
       </div>
     </div>
   </div>
 </div>
 
+<div class="compliance-footer">
+  <div class="lo-name">Elias Ayoub | Loan Officer</div>
+  NMLS ID: 2525206<br>
+  Company NMLS ID: 1925352<br>
+  <div class="disclaimer">This is not a mortgage application. Equal Housing Opportunity.</div>
+</div>
+
 <script>
-// Build email dynamically to prevent obfuscation
-var _eu = 'eliasa';
-var _ed = 'mtgpros';
-var _et = '.com';
-var RECIPIENT = _eu + '@' + _ed + _et;
 var FORMSPREE_ENDPOINT = 'https://formspree.io/f/xaqlblyk';
 
 var ALL_QUESTIONS = [
@@ -571,25 +601,36 @@ function renderContact() {
   var card = document.getElementById('question-card');
   card.innerHTML =
     '<div class="question-number">Final Step</div>' +
-    '<div class="question-text">Where should we send your personalized options?</div>' +
+    '<div class="question-text">How would you like us to reach you?</div>' +
+    '<p style="font-size:13px;color:#6B7280;margin:-20px 0 24px;">Provide your phone number, email, or both.</p>' +
     '<div class="contact-fields">' +
       '<div class="field-group">' +
-        '<label>First and Last Name</label>' +
-        '<input type="text" id="c-name" placeholder="Jane Smith" value="' + (answers._name || '') + '">' +
-      '</div>' +
-      '<div class="field-group">' +
         '<label>Phone Number</label>' +
-        '<input type="tel" id="c-phone" placeholder="(555) 123-4567" value="' + (answers._phone || '') + '">' +
+        '<input type="tel" id="c-phone" placeholder="(555) 123-4567" value="' + (answers._phone || '') + '" oninput="checkContactReady()">' +
       '</div>' +
       '<div class="field-group">' +
-        '<label>Email (optional)</label>' +
-        '<input type="email" id="c-email" placeholder="jane' + String.fromCharCode(64) + 'example.com" value="' + (answers._email || '') + '">' +
+        '<label>Email</label>' +
+        '<input type="email" id="c-email" placeholder="jane' + String.fromCharCode(64) + 'example.com" value="' + (answers._email || '') + '" oninput="checkContactReady()">' +
       '</div>' +
     '</div>' +
     '<div class="nav-row">' +
       '<button class="btn-back" onclick="back()">\u2190 Back</button>' +
-      '<button class="btn-next active" onclick="submit()">Submit My Answers</button>' +
+      '<button class="btn-next" id="btn-submit" onclick="submitQuiz()">Submit My Answers</button>' +
     '</div>';
+  checkContactReady();
+}
+
+function checkContactReady() {
+  var phoneEl = document.getElementById('c-phone');
+  var emailEl = document.getElementById('c-email');
+  var btn = document.getElementById('btn-submit');
+  var phone = phoneEl ? phoneEl.value.trim() : '';
+  var email = emailEl ? emailEl.value.trim() : '';
+  if (phone || email) {
+    btn.classList.add('active');
+  } else {
+    btn.classList.remove('active');
+  }
 }
 
 function handleTextInput(id, value) {
@@ -638,32 +679,31 @@ function back() {
   if (current > 0) { current--; render(); }
 }
 
-async function submit() {
-  var name = document.getElementById('c-name').value.trim();
-  var phone = document.getElementById('c-phone').value.trim();
-  var email = document.getElementById('c-email').value.trim();
+async function submitQuiz() {
+  var phoneEl = document.getElementById('c-phone');
+  var emailEl = document.getElementById('c-email');
+  var phone = phoneEl ? phoneEl.value.trim() : '';
+  var email = emailEl ? emailEl.value.trim() : '';
 
-  if (!name || !phone) {
-    alert('Please enter your name and phone number.');
+  if (!phone && !email) {
+    alert('Please provide at least a phone number or email so we can reach you.');
     return;
   }
 
   // Disable button to prevent double submit
-  var submitBtn = document.querySelector('.btn-next');
+  var submitBtn = document.getElementById('btn-submit');
   submitBtn.textContent = 'Submitting...';
   submitBtn.style.pointerEvents = 'none';
   submitBtn.style.opacity = '0.5';
 
-  answers._name = name;
   answers._phone = phone;
   answers._email = email;
 
-  // Build payload with all answers
+  // Build payload
   var payload = {
-    _subject: 'New Mortgage Lead: ' + name,
-    Name: name,
-    Phone: phone,
-    Email: email || 'Not provided'
+    _subject: 'New Mortgage Lead',
+    phone: phone || 'Not provided',
+    email: email || 'Not provided'
   };
 
   var activeQs = getActiveQuestions();
@@ -671,7 +711,7 @@ async function submit() {
     payload[activeQs[i].question] = answers[activeQs[i].id] || '';
   }
 
-  payload['Submitted'] = new Date().toLocaleString();
+  payload['submitted_at'] = new Date().toLocaleString();
 
   try {
     var response = await fetch(FORMSPREE_ENDPOINT, {
@@ -687,28 +727,19 @@ async function submit() {
       throw new Error('Submission failed');
     }
 
-    var emailLink = document.getElementById('done-email-link');
-    emailLink.href = 'mail' + 'to:' + RECIPIENT;
-    emailLink.textContent = RECIPIENT;
-
-    document.getElementById('quiz-container').classList.add('hidden');
-    document.getElementById('done-screen').classList.remove('hidden');
+    showDoneScreen();
   } catch (err) {
     submitBtn.textContent = 'Submit My Answers';
     submitBtn.style.pointerEvents = 'all';
     submitBtn.style.opacity = '1';
-    alert('Something went wrong. Please try again.');
+    alert('Something went wrong submitting the form. Please try again.');
   }
 }
 
-// Set up done screen email on load
-document.addEventListener('DOMContentLoaded', function() {
-  var emailLink = document.getElementById('done-email-link');
-  if (emailLink) {
-    emailLink.href = 'mail' + 'to:' + RECIPIENT;
-    emailLink.textContent = RECIPIENT;
-  }
-});
+function showDoneScreen() {
+  document.getElementById('quiz-container').classList.add('hidden');
+  document.getElementById('done-screen').classList.remove('hidden');
+}
 
 render();
 </script>
