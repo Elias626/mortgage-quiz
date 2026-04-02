@@ -765,7 +765,7 @@ function back() {
   if (current > 0) { current--; render(); }
 }
 
-function submitQuiz() {
+async function submitQuiz() {
   var phoneEl = document.getElementById('c-phone');
   var emailEl = document.getElementById('c-email');
   var phone = phoneEl ? phoneEl.value.trim() : '';
@@ -776,43 +776,57 @@ function submitQuiz() {
     return;
   }
 
+  var submitBtn = document.getElementById('btn-submit');
+  submitBtn.textContent = 'Submitting...';
+  submitBtn.style.pointerEvents = 'none';
+  submitBtn.style.opacity = '0.5';
+
   answers._phone = phone;
   answers._email = email;
 
-  // Build a real form and submit it directly to Formspree
-  var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = 'https://formspree.io/f/xaqlblyk';
-
-  function addField(name, value) {
-    var input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = name;
-    input.value = value;
-    form.appendChild(input);
-  }
-
-  // Redirect back after submission
-  addField('_next', window.location.href + '?submitted=true');
-  addField('_subject', 'New Mortgage Lead');
-  addField('Phone', phone || 'Not provided');
-  addField('Email', email || 'Not provided');
+  var formData = new FormData();
+  formData.append('_subject', 'New Mortgage Lead');
+  formData.append('Phone', phone || 'Not provided');
+  formData.append('Email', email || 'Not provided');
+  formData.append('_source', window.location.href);
+  formData.append('Submitted', new Date().toLocaleString());
 
   var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
     var q = activeQs[i];
     if (q.type === 'combined_property') {
-      addField('Property Structure', answers.property || '');
-      addField('Property Occupancy', answers.property_use || '');
+      formData.append('Property Structure', answers.property || '');
+      formData.append('Property Occupancy', answers.property_use || '');
     } else {
-      addField(q.question, answers[q.id] || '');
+      formData.append(q.question, answers[q.id] || '');
     }
   }
 
-  addField('Submitted', new Date().toLocaleString());
+  try {
+    var response = await fetch(FORMSPREE_ENDPOINT, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
 
-  document.body.appendChild(form);
-  form.submit();
+    if (!response.ok) {
+      var errorText = '';
+      try {
+        errorText = await response.text();
+      } catch (e) {}
+      throw new Error(errorText || 'Submission failed');
+    }
+
+    showDoneScreen();
+  } catch (err) {
+    console.error('Formspree submission error:', err);
+    submitBtn.textContent = 'Submit My Answers';
+    submitBtn.style.pointerEvents = 'all';
+    submitBtn.style.opacity = '1';
+    alert('Submission failed. Please try again.');
+  }
 }
 
 function showDoneScreen() {
@@ -820,17 +834,7 @@ function showDoneScreen() {
   document.getElementById('done-screen').classList.remove('hidden');
 }
 
-// Check if returning from Formspree submission
-if (window.location.search.indexOf('submitted=true') > -1) {
-  document.addEventListener('DOMContentLoaded', function() {
-    showDoneScreen();
-    if (window.history.replaceState) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  });
-} else {
-  render();
-}
+render();
 </script>
 </body>
 </html>
