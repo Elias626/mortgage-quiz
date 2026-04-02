@@ -469,14 +469,7 @@ var ALL_QUESTIONS = [
     id: 'goal',
     question: "What's your primary goal?",
     icon: ['\uD83D\uDCC9','\uD83D\uDCB0','\uD83C\uDFE6'],
-    options: ['Lower payment', 'Cash out', 'HELOC/2nd Mortgage']
-  },
-  {
-    id: 'refi_rate',
-    type: 'text_input',
-    question: 'What is your current interest rate?',
-    placeholder: 'e.g. 6.5%',
-    showIf: function() { return answers.goal === 'Lower payment'; }
+    options: ['Lower payment', 'Cash out', '2nd Mortgage or HELOC']
   },
   {
     id: 'cashout_amount',
@@ -490,18 +483,7 @@ var ALL_QUESTIONS = [
     type: 'text_input',
     question: 'How much?',
     placeholder: 'e.g. $75,000',
-    showIf: function() { return answers.goal === 'HELOC/2nd Mortgage'; }
-  },
-  {
-    id: 'loan_parties',
-    question: 'Will you be the only one on the loan?',
-    icon: ['\uD83D\uDC64','\uD83D\uDC8D','\uD83D\uDC65'],
-    options: ['Yes', 'No, my spouse as well', 'No, others as well']
-  },
-  {
-    id: 'property_combined',
-    type: 'combined_property',
-    question: 'Property type?'
+    showIf: function() { return answers.goal === '2nd Mortgage or HELOC'; }
   },
   {
     id: 'credit',
@@ -519,21 +501,33 @@ var ALL_QUESTIONS = [
     id: 'veteran',
     question: 'Veteran in the home?',
     icon: ['\uD83C\uDF96\uFE0F','\u274C'],
-    options: ['Yes', 'No'],
-    showIf: function() { return answers.property_use !== 'Investment'; }
+    options: ['Yes', 'No']
   },
   {
     id: 'va_disability',
     question: 'Do you receive 10% or higher VA disability?',
     icon: ['\u2705','\u274C'],
     options: ['Yes', 'No'],
-    showIf: function() { return answers.property_use !== 'Investment' && answers.veteran === 'Yes'; }
+    showIf: function() { return answers.veteran === 'Yes'; }
+  },
+  {
+    id: 'refi_rate',
+    type: 'text_input',
+    question: 'What is your current interest rate?',
+    placeholder: 'e.g. 6.5%',
+    showIf: function() { return answers.goal === 'Lower payment'; }
+  },
+  {
+    id: 'loan_parties',
+    question: 'Will you be the only one on the loan?',
+    icon: ['\uD83D\uDC64','\uD83D\uDC8D','\uD83D\uDC65'],
+    options: ['Yes', 'No, my spouse as well', 'No, others as well']
   },
   {
     id: 'income_type',
-    question: 'Income?',
+    question: 'Primary income type?',
     icon: ['\uD83D\uDCBC','\uD83D\uDCCB','\uD83C\uDFD6\uFE0F'],
-    options: ['Business/1099', 'W2', 'Retired'],
+    options: ['Business/1099/Rental', 'W2', 'Retired'],
     showIf: function() { return !(answers.goal === 'Lower payment' && answers.veteran === 'Yes'); }
   },
   {
@@ -568,12 +562,6 @@ function render() {
   document.getElementById('progress-fill').style.width = pct + '%';
 
   var card = document.getElementById('question-card');
-
-  // Combined property question
-  if (q.type === 'combined_property') {
-    renderCombinedProperty(card);
-    return;
-  }
 
   if (q.type === 'text_input') {
     card.innerHTML =
@@ -685,11 +673,11 @@ function renderContact() {
 
   var card = document.getElementById('question-card');
   card.innerHTML =
-    '<div class="question-text">Best email to send your options to?</div>' +
+    '<div class="question-text">Just like that. Options sent by phone or mail.</div>' +
     '<p style="font-size:13px;color:#6B7280;margin:-20px 0 24px;"></p>' +
     '<div class="contact-fields">' +
       '<div class="field-group">' +
-        '<label>Phone Number (optional)</label>' +
+        '<label>Phone Number</label>' +
         '<input type="tel" id="c-phone" placeholder="(555) 123-4567" value="' + (answers._phone || '') + '" oninput="checkContactReady()">' +
       '</div>' +
       '<div class="field-group">' +
@@ -750,9 +738,7 @@ function select(id, value, el) {
 function next() {
   var questions = getActiveQuestions();
   var q = questions[current];
-  if (q.type === 'combined_property') {
-    if (!answers.property || !answers.property_use) return;
-  } else if (q.type === 'text_input') {
+  if (q.type === 'text_input') {
     if (!answers[q.id] || !answers[q.id].trim()) return;
   } else {
     if (!answers[q.id]) return;
@@ -771,55 +757,43 @@ function submitQuiz() {
   var phone = phoneEl ? phoneEl.value.trim() : '';
   var email = emailEl ? emailEl.value.trim() : '';
 
-  if (!email) {
-    alert('Please enter your email so I can send your options.');
+  if (!phone && !email) {
+    alert('Please provide at least a phone number or email so we can reach you.');
     return;
   }
-
-  // Disable button to prevent double submit
-  var submitBtn = document.getElementById('btn-submit');
-  submitBtn.textContent = 'Submitting...';
-  submitBtn.style.pointerEvents = 'none';
-  submitBtn.style.opacity = '0.5';
 
   answers._phone = phone;
   answers._email = email;
 
-  // Build FormData
-  var formData = new FormData();
-  formData.append('_subject', 'New Mortgage Lead');
-  formData.append('phone', phone || 'Not provided');
-  formData.append('email', email || '');
+  // Build a real form and submit it directly to Formspree
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = 'https://formspree.io/f/xaqlblyk';
+
+  function addField(name, value) {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  // Redirect back after submission
+  addField('_next', window.location.href + '?submitted=true');
+  addField('_subject', 'New Mortgage Lead');
+  addField('Phone', phone || 'Not provided');
+  addField('Email', email || 'Not provided');
 
   var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
     var q = activeQs[i];
-    if (q.type === 'combined_property') {
-      formData.append('Property Structure', answers.property || '');
-      formData.append('Property Occupancy', answers.property_use || '');
-    } else {
-      formData.append(q.question, answers[q.id] || '');
-    }
+    addField(q.question, answers[q.id] || '');
   }
 
-  formData.append('Submitted', new Date().toLocaleString());
+  addField('Submitted', new Date().toLocaleString());
 
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', FORMSPREE_ENDPOINT);
-  xhr.setRequestHeader('Accept', 'application/json');
-  xhr.onreadystatechange = function() {
-    if (xhr.readyState === 4) {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        showDoneScreen();
-      } else {
-        submitBtn.textContent = 'Submit My Answers';
-        submitBtn.style.pointerEvents = 'all';
-        submitBtn.style.opacity = '1';
-        alert('Submission failed. Please make sure your email is entered correctly and try again.');
-      }
-    }
-  };
-  xhr.send(formData);
+  document.body.appendChild(form);
+  form.submit();
 }
 
 function showDoneScreen() {
@@ -827,7 +801,17 @@ function showDoneScreen() {
   document.getElementById('done-screen').classList.remove('hidden');
 }
 
-render();
+// Check if returning from Formspree submission
+if (window.location.search.indexOf('submitted=true') > -1) {
+  document.addEventListener('DOMContentLoaded', function() {
+    showDoneScreen();
+    if (window.history.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  });
+} else {
+  render();
+}
 </script>
 </body>
 </html>
