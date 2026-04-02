@@ -494,18 +494,18 @@ var ALL_QUESTIONS = [
   },
   {
     id: 'loan_parties',
-    question: 'Are you going to be the only one on the loan?',
+    question: 'Will you be the only one on the loan?',
     icon: ['\uD83D\uDC64','\uD83D\uDC8D','\uD83D\uDC65'],
     options: ['Yes', 'No, my spouse as well', 'No, others as well']
   },
   {
     id: 'property_combined',
     type: 'combined_property',
-    question: 'What type of property?'
+    question: 'Property type?'
   },
   {
     id: 'credit',
-    question: 'How would you describe your credit?',
+    question: 'Describe your credit:',
     icon: ['\uD83D\uDD34','\uD83D\uDFE0','\uD83D\uDFE1','\uD83D\uDFE2'],
     options: ['500\u2013580', '580\u2013640', '640\u2013740', '740+']
   },
@@ -517,7 +517,7 @@ var ALL_QUESTIONS = [
   },
   {
     id: 'veteran',
-    question: 'Are you or is anyone in the home a veteran?',
+    question: 'Veteran in the home?',
     icon: ['\uD83C\uDF96\uFE0F','\u274C'],
     options: ['Yes', 'No'],
     showIf: function() { return answers.property_use !== 'Investment'; }
@@ -649,7 +649,7 @@ function renderCombinedProperty(card) {
   var s2Disabled = !answers.property ? ' disabled' : '';
 
   card.innerHTML =
-    '<div class="question-text">What type of property?</div>' +
+    '<div class="question-text">Property type?</div>' +
     '<div class="section-label">Structure</div>' +
     '<div class="options">' + s1Html + '</div>' +
     '<div class="section-divider"></div>' +
@@ -765,7 +765,7 @@ function back() {
   if (current > 0) { current--; render(); }
 }
 
-async function submitQuiz() {
+function submitQuiz() {
   var phoneEl = document.getElementById('c-phone');
   var emailEl = document.getElementById('c-email');
   var phone = phoneEl ? phoneEl.value.trim() : '';
@@ -785,55 +785,41 @@ async function submitQuiz() {
   answers._phone = phone;
   answers._email = email;
 
-  // Build payload
-  var payload = {
-    _subject: 'New Mortgage Lead',
-    phone: phone || 'Not provided',
-    email: email || 'Not provided'
-  };
+  // Build FormData
+  var formData = new FormData();
+  formData.append('_subject', 'New Mortgage Lead');
+  formData.append('Phone', phone || 'Not provided');
+  formData.append('Email', email || 'Not provided');
 
   var activeQs = getActiveQuestions();
   for (var i = 0; i < activeQs.length; i++) {
     var q = activeQs[i];
     if (q.type === 'combined_property') {
-      payload['Property Structure'] = answers.property || '';
-      payload['Property Occupancy'] = answers.property_use || '';
+      formData.append('Property Structure', answers.property || '');
+      formData.append('Property Occupancy', answers.property_use || '');
     } else {
-      payload[q.question] = answers[q.id] || '';
+      formData.append(q.question, answers[q.id] || '');
     }
   }
 
-  payload['submitted_at'] = new Date().toLocaleString();
+  formData.append('Submitted', new Date().toLocaleString());
 
-  // Use hidden iframe + form to avoid CORS issues
-  var iframeName = 'formspree-frame-' + Date.now();
-  var iframe = document.createElement('iframe');
-  iframe.name = iframeName;
-  iframe.style.display = 'none';
-  document.body.appendChild(iframe);
-
-  var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = FORMSPREE_ENDPOINT;
-  form.target = iframeName;
-  form.style.display = 'none';
-
-  var keys = Object.keys(payload);
-  for (var k = 0; k < keys.length; k++) {
-    var input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = keys[k];
-    input.value = payload[keys[k]];
-    form.appendChild(input);
-  }
-
-  document.body.appendChild(form);
-  form.submit();
-
-  // Show done screen after a brief delay to let form submit
-  setTimeout(function() {
-    showDoneScreen();
-  }, 500);
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', FORMSPREE_ENDPOINT);
+  xhr.setRequestHeader('Accept', 'application/json');
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        showDoneScreen();
+      } else {
+        submitBtn.textContent = 'Submit My Answers';
+        submitBtn.style.pointerEvents = 'all';
+        submitBtn.style.opacity = '1';
+        alert('Something went wrong. Please try again.');
+      }
+    }
+  };
+  xhr.send(formData);
 }
 
 function showDoneScreen() {
